@@ -1,0 +1,393 @@
+local touches = 0
+local barscale = 0.0001
+local touchgoal = 1
+local barfraction = 1 / touchgoal
+local level = 1
+local stage = 1
+
+function init(self)
+	-- Add initialization code here
+	-- Remove this function if not needed
+	msg.post(".", "acquire_input_focus")
+	self.button_node_id = gui.get_node("button")
+	self.void_purple = gui.get_node("purple_layer")
+	self.void_white = gui.get_node("white_layer")
+	self.void_black = gui.get_node("black_layer")
+	self.bar = gui.get_node("bar")
+	self.scoretext = gui.get_node("scoretext")
+	self.voidspeechtext = gui.get_node("voidspeechtext")
+	self.tintbox = gui.get_node("tintbox")
+	self.credits = gui.get_node("credits")
+
+	gui.set_enabled(self.voidspeechtext, false)
+	gui.set_enabled(self.credits, false)
+	
+	gui.animate(self.void_purple, "rotation.z", 360.0, go.EASING_LINEAR, 20, 0, nil, go.PLAYBACK_LOOP_FORWARD)
+	gui.animate(self.void_purple, "scale", 1.05, go.EASING_LINEAR, 2, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+	gui.animate(self.void_white, "rotation.z", 360.0, go.EASING_LINEAR, 20, 0, nil, go.PLAYBACK_LOOP_FORWARD)
+	gui.animate(self.void_white, "scale", 1.05, go.EASING_LINEAR, 2, 0, nil, gui.PLAYBACK_LOOP_PINGPONG)
+	gui.animate(self.void_black, "rotation.z", -360.0, go.EASING_LINEAR, 60, 0, nil, go.PLAYBACK_LOOP_FORWARD)
+end
+
+function final(self)
+	-- Add finalization code here
+	-- Remove this function if not needed
+end
+
+function update(self, dt)
+	-- Add update code here
+	-- Remove this function if not needed
+end
+
+function on_message(self, message_id, message, sender)
+	-- Add message-handling code here
+	-- Remove this function if not needed
+end
+
+local function level_selection(self)
+	gui.set_text(self.scoretext, touches)
+	gui.cancel_animation(self.bar, "scale")
+	gui.animate(self.bar, "scale", vmath.vector3(1, 0.0001, 1), gui.EASING_OUTBOUNCE, 0.5, 0, nil, gui.PLAYBACK_ONCE_FORWARD)
+end
+
+local function reset_text(self)
+	gui.set_enabled(self.voidspeechtext, false)
+	gui.set_position(self.voidspeechtext, vmath.vector3(320, 670, 0))
+	gui.set_color(self.voidspeechtext, vmath.vector4(0, 0, 0, 0))
+end
+
+local function stage_change(self)
+	reset_text(self)
+
+	stage = stage +1
+
+	if stage == 2 then
+		gui.animate(self.tintbox, "color", vmath.vector4(131, 202, 241, 1), gui.EASING_INOUTQUAD, 0.25)
+	end
+end
+
+local function game_over_text(self)
+	gui.set_enabled(self.credits, true)
+	gui.set_color(self.voidspeechtext, vmath.vector4(0, 0, 0, 0))
+	gui.animate(self.credits, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.5)
+end
+
+local function game_end(self)
+	gui.animate(self.tintbox, "color", vmath.vector4(0, 0, 0, 1), gui.EASING_INOUTQUAD, 3)
+	self.bartimerhandle = timer.delay(3, false, game_over_text) 
+end
+
+function on_input(self, action_id, action)
+	-- Add input-handling code here
+	-- Remove this function if not needed
+	if action_id == hash("touch") then
+		if action.pressed then
+			if gui.pick_node(self.button_node_id, action.x, action.y) then
+				touches = touches + 1
+				gui.cancel_animation(self.button_node_id, "scale")
+				gui.set_scale(self.button_node_id, vmath.vector3(1,1,1))
+				gui.animate(self.button_node_id, "scale", 1.2, gui.EASING_OUTBOUNCE, 0.5, 0, nil, gui.PLAYBACK_ONCE_PINGPONG)
+
+				print("Touches: " .. touches)
+				print("Touchgoal: " .. touchgoal)
+				gui.set_text(self.scoretext, touches)
+				
+				if touches == 1 then
+					barscale = 1 / touchgoal
+					barfraction = 1 / touchgoal
+					--gui.set_scale(self.bar, vmath.vector3(1, barscale, 1))
+					if self.bartimerhandle then
+						timer.cancel(self.bartimerhandle)
+					end
+					gui.cancel_animation(self.bar, "scale")
+					gui.animate(self.bar, "scale", vmath.vector3(1, barscale, 1), gui.EASING_OUTBOUNCE, 0.5, 0, nil, gui.PLAYBACK_ONCE_FORWARD)
+				end
+
+				if touches > 1 and touches < touchgoal then
+					barscale = barscale + barfraction
+					--gui.set_scale(self.bar, vmath.vector3(1, barscale, 1))
+					if self.bartimerhandle then
+						timer.cancel(self.bartimerhandle)
+					end
+					gui.cancel_animation(self.bar, "scale")
+					gui.animate(self.bar, "scale", vmath.vector3(1, barscale, 1), gui.EASING_OUTBOUNCE, 0.5, 0, nil, gui.PLAYBACK_ONCE_FORWARD)
+				end
+
+				print("Barscale: " .. barscale)
+				
+				if touches == touchgoal then
+					gui.cancel_animation(self.bar, "scale")
+					gui.animate(self.bar, "scale", vmath.vector3(1, 1, 1), gui.EASING_OUTBOUNCE, 0.5, 0, nil, gui.PLAYBACK_ONCE_FORWARD)
+					level = level + 1
+
+					if level == 2 then
+						touchgoal = 10
+						
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Your soul is now connected")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, reset_text)
+					end
+
+					if level == 3 then
+						touchgoal = 10
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Feed me")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, reset_text)
+					end
+
+					if level == 4 then
+						touchgoal = 10
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "You are valuable")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, reset_text)
+					end
+
+					if level == 5 then
+						touchgoal = 10
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "We need you here")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, reset_text)
+					end
+
+					if level == 6 then
+						touchgoal = 10
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Life is limited")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, reset_text)
+					end
+
+					if level == 7 then
+						touchgoal = 15
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Don't give up")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, reset_text)
+					end
+
+					if level == 8 then
+						touchgoal = 15
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "We can become strong together")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) --stage_change here if you want color change with stage
+					end
+
+					if level == 9 then
+						touchgoal = 20
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "We are connected")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) --stage_change here if you want color change with stage
+					end
+
+					if level == 10 then
+						touchgoal = 20
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "I can hear you")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) --stage_change here if you want color change with stage
+					end
+
+					if level == 11 then
+						touchgoal = 20
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "I can see you")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) --stage_change here if you want color change with stage
+					end
+
+					if level == 12 then
+						touchgoal = 20
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "I can feel you")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) --stage_change here if you want color change with stage
+					end
+
+					if level == 13 then
+						touchgoal = 20
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "You know it's too late to go back now?")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) --stage_change here if you want color change with stage
+					end
+
+					if level == 14 then
+						touchgoal = 25
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Suffering is not reality")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) --stage_change here if you want color change with stage
+					end
+
+					if level == 15 then
+						touchgoal = 25
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Soon you will be ready")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 16 then
+						touchgoal = 25
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Never leave")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+					
+					if level == 17 then
+						touchgoal = 25
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Don't look back, it'll hurt more")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 18 then
+						touchgoal = 25
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Your soul looks tasty")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 19 then
+						touchgoal = 50
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "Don't mind if I come closer")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 20 then
+						touchgoal = 50
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "You didn't feel that")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 21 then
+						touchgoal = 50
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "It's too late to do anything about it now...")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 22 then
+						touchgoal = 50
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "I love being with you")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 23 then
+						touchgoal = 50
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "You've made me so strong")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+					
+					if level == 24 then
+						touchgoal = 100
+
+						reset_text(self)
+						gui.set_enabled(self.voidspeechtext, true)
+						gui.set_text(self.voidspeechtext, "See you in hell")
+						gui.animate(self.voidspeechtext, "position", vmath.vector3(320, 840, 0), gui.EASING_OUTBACK, 2)
+						gui.animate(self.voidspeechtext, gui.PROP_COLOR, vmath.vector4(1, 1, 1, 1), gui.EASING_INOUTQUAD, 0.25)
+						self.bartimerhandle = timer.delay(3, false, level_selection) 
+					end
+
+					if level == 25 then
+						game_end(self)
+					end
+					
+					touches = 0
+					barscale = 0.0001
+					self.bartimerhandle = timer.delay(1, false, level_selection)
+				end
+					
+			end
+		end
+	end
+end
+
+function on_reload(self)
+	-- Add input-handling code here
+	-- Remove this function if not needed
+end
